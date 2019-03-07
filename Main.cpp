@@ -11,7 +11,7 @@ struct Vertex
 	bool Running = false;
 	int WindowSizeX = 800;
 	int WindowSizeY = 600;
-	Vertex verticies[] = { { 0.0f, 0.5f, 0.0f }, { 0.45f, -0.5f, 0.0f }, { -0.45f, -0.5f, 0.0f }, };
+	Vertex verticies[] = { { 0.0f, 0.5f, 0.0f }, { 0.45f, -0.5f, 0.0f }, { -0.45f, -0.5f, 0.0f } };
 #pragma endregion
 
 LRESULT CALLBACK RenderWindowProcedure(HWND windowHandle, UINT message, WPARAM wparam, LPARAM lparam) {
@@ -41,7 +41,7 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, char* cmdArgs, in
 	ID3D11DeviceContext* deviceContext = nullptr;
 	IDXGISwapChain* swapChain = nullptr;
 	ID3D11Buffer* inputBuffer = nullptr;
-	ID3D11ShaderResourceView* inputBufferView = nullptr; //to be initialized once I understand why it is needed.
+	ID3D11ShaderResourceView* inputBufferView = nullptr; //I will initialize this once I understand why it is needed. Will creating an input layout not work?
 	ID3D11UnorderedAccessView* outputRenderTarget = nullptr;
 #pragma endregion
 
@@ -95,7 +95,7 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, char* cmdArgs, in
 	{
 		ID3D11Texture2D * backBuffer = nullptr;
 		D3D11_TEXTURE2D_DESC backBufferDesc = {};
-		UINT initCount = 0;
+		UINT initCount = 0; //I don't understand what this does.
 
 		swapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), (void**)&backBuffer);
 		backBuffer->GetDesc(&backBufferDesc);
