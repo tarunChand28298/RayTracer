@@ -3,19 +3,19 @@
 #include <d3dcompiler.h>
 
 struct Sphere {
-	float x;
-	float y;
-	float z;
+	float x, y, z;
 	float radius;
+	float albedox, albedoy, albedoz;
+	float specularx, speculary, specularz;
 };
 Sphere spheres[] = {
-	{0.0f, 0.0f, 0.0f, 1.0f}
+	{0.5f, 0.1f, 0.8f, 1.0f}
 };
 
 #pragma region Global Variables:
 bool running = false;
 int WindowWidth = 800;
-int WindowHeight = 600;
+int WindowHeight = 500;
 #pragma endregion
 
 
@@ -63,6 +63,7 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, char* cmdArgs, in
 		wc.lpfnWndProc = DirectXWindowProc;
 		wc.lpszClassName = "DirectXWindowClass";
 		wc.style = CS_OWNDC | CS_HREDRAW | CS_VREDRAW;
+		wc.hCursor = LoadCursor(nullptr, IDC_ARROW);
 		RegisterClass(&wc);
 
 		windowHandle = CreateWindow("DirectXWindowClass", "DirectX Render Window", WS_OVERLAPPED | WS_SYSMENU | WS_MINIMIZEBOX, CW_USEDEFAULT, CW_USEDEFAULT, WindowWidth, WindowHeight, nullptr, nullptr, instance, nullptr);
@@ -98,20 +99,22 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, char* cmdArgs, in
 		//create buffer:
 		D3D11_BUFFER_DESC bd = {};
 		bd.ByteWidth = sizeof(Sphere) * ARRAYSIZE(spheres);
-		bd.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+		bd.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_CONSTANT_BUFFER;
 		bd.StructureByteStride = sizeof(Sphere);
 
 		D3D11_SUBRESOURCE_DATA srd = {spheres, 0, 0};
 		
 		device->CreateBuffer(&bd, &srd, &inputBuffer);
 		deviceContext->CSSetConstantBuffers(0, 1, &inputBuffer);
-
+		
+		//This part does not work. I don't know why.
 		//create view into the buffer:
 		//D3D11_SHADER_RESOURCE_VIEW_DESC srvd = {};
 		//srvd.Format = DXGI_FORMAT_UNKNOWN;
 		//srvd.ViewDimension = D3D11_SRV_DIMENSION_BUFFER;
 
 		//device->CreateShaderResourceView(inputBuffer, &srvd, &inputBufferView);
+		//deviceContext->CSSetShaderResources(0, 1, &inputBufferView);
 	}
 	#pragma endregion
 	#pragma region Create Output for Shader:
