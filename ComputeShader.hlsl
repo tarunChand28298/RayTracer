@@ -1,4 +1,13 @@
 RWTexture2D<float4> pixels;
+struct Sphere
+{
+    float3 position;
+    float radius;
+    float3 albedo;
+    float3 specular;
+};
+//I want to bind a buffer to this, but I can't. Don't know why.
+//StructuredBuffer<Sphere> spheres;
 
 struct Ray {
     float3 origin;
@@ -31,14 +40,6 @@ RayHit CreateRayHit()
     hit.specular = float3(0.0f, 0.0f, 0.0f);
     return hit;
 }
-
-struct Sphere
-{
-    float3 position;
-    float radius;
-    float3 albedo;
-    float3 specular;
-};
 
 Ray CreateCameraRay(float2 uv)
 {
@@ -153,5 +154,8 @@ void main( uint3 DTid : SV_DispatchThreadID )
     }
 
     //===================================================================================
-    pixels[DTid.xy] = float4(result, 1);;
+    pixels[DTid.xy] = float4(result, 1);
+    
+    //If the buffer that contains the spheres binds, this part will work.
+    //pixels[DTid.xy] = float4(spheres[0].position, 1);
 }
