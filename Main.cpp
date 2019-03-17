@@ -44,13 +44,15 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, char* cmdArgs, in
 	#pragma region Stack Variables:
 	HWND windowHandle;
 
-	ID3D11Device* 				device = nullptr;
-	ID3D11DeviceContext* 			deviceContext = nullptr;
-	IDXGISwapChain* 			swapchain = nullptr;
+	ID3D11Device* device = nullptr;
+	ID3D11DeviceContext* deviceContext = nullptr;
+	IDXGISwapChain* swapchain = nullptr;
 
-	ID3D11ComputeShader* 			computeShader = nullptr;
-	ID3D11Buffer* 				inputBuffer = nullptr;
-	ID3D11UnorderedAccessView* 		outputBackBuffer = nullptr;
+	ID3D11ComputeShader* computeShader = nullptr;
+	ID3D11Buffer* inputBuffer = nullptr;
+	ID3D11ShaderResourceView* inputBufferView = nullptr;
+
+	ID3D11UnorderedAccessView* outputBackBuffer = nullptr;
 	#pragma endregion
 
 	//=============================================================================================================================================
@@ -93,6 +95,7 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, char* cmdArgs, in
 	#pragma endregion
 	#pragma region Create Input for Shader:
 	{
+		//create buffer:
 		D3D11_BUFFER_DESC bd = {};
 		bd.ByteWidth = sizeof(Sphere) * ARRAYSIZE(spheres);
 		bd.BindFlags = D3D11_BIND_SHADER_RESOURCE;
@@ -102,6 +105,13 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, char* cmdArgs, in
 		
 		device->CreateBuffer(&bd, &srd, &inputBuffer);
 		deviceContext->CSSetConstantBuffers(0, 1, &inputBuffer);
+
+		//create view into the buffer:
+		//D3D11_SHADER_RESOURCE_VIEW_DESC srvd = {};
+		//srvd.Format = DXGI_FORMAT_UNKNOWN;
+		//srvd.ViewDimension = D3D11_SRV_DIMENSION_BUFFER;
+
+		//device->CreateShaderResourceView(inputBuffer, &srvd, &inputBufferView);
 	}
 	#pragma endregion
 	#pragma region Create Output for Shader:
@@ -171,6 +181,7 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, char* cmdArgs, in
 	swapchain->Release();
 	computeShader->Release();
 	inputBuffer->Release();
+	//inputBufferView->Release();
 	outputBackBuffer->Release();
 	#pragma endregion
 
