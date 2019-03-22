@@ -1,3 +1,5 @@
+//Problem at line: 126
+
 #include <Windows.h>
 #include <d3d11.h>
 #include <d3dcompiler.h>
@@ -15,7 +17,7 @@ Sphere spheres[] = {
 #pragma region Global Variables:
 bool running = false;
 int WindowWidth = 800;
-int WindowHeight = 500;
+int WindowHeight = 600;
 #pragma endregion
 
 
@@ -44,15 +46,16 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, char* cmdArgs, in
 	#pragma region Stack Variables:
 	HWND windowHandle;
 
-	ID3D11Device* device = nullptr;
-	ID3D11DeviceContext* deviceContext = nullptr;
-	IDXGISwapChain* swapchain = nullptr;
+	ID3D11Device*					device = nullptr;
+	ID3D11DeviceContext*			deviceContext = nullptr;
+	IDXGISwapChain*					swapchain = nullptr;
 
-	ID3D11ComputeShader* computeShader = nullptr;
-	ID3D11Buffer* inputBuffer = nullptr;
-	ID3D11ShaderResourceView* inputBufferView = nullptr;
+	ID3D11ComputeShader*			computeShader = nullptr;
 
-	ID3D11UnorderedAccessView* outputBackBuffer = nullptr;
+	ID3D11Buffer*					inputSphereBuffer = nullptr;
+	ID3D11ShaderResourceView*		inputSphereBufferView = nullptr;
+
+	ID3D11UnorderedAccessView*		outputBackBuffer = nullptr;
 	#pragma endregion
 
 	//=============================================================================================================================================
@@ -96,44 +99,56 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, char* cmdArgs, in
 	#pragma endregion
 	#pragma region Create Input for Shader:
 	{
-		//create buffer:
+		//Create input buffer:
 		D3D11_BUFFER_DESC bd = {};
-		bd.ByteWidth = sizeof(Sphere) * ARRAYSIZE(spheres);
-		bd.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_CONSTANT_BUFFER;
+		bd.ByteWidth = sizeof(Sphere)*ARRAYSIZE(spheres);
+		bd.Usage = D3D11_USAGE_DEFAULT;
+		bd.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+		bd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 		bd.StructureByteStride = sizeof(Sphere);
 
-		D3D11_SUBRESOURCE_DATA srd = {spheres, 0, 0};
+		D3D11_SUBRESOURCE_DATA srd = {};
+		srd.pSysMem = spheres;
+		srd.SysMemPitch = 0;
+		srd.SysMemSlicePitch = 0;
 		
-		device->CreateBuffer(&bd, &srd, &inputBuffer);
-		deviceContext->CSSetConstantBuffers(0, 1, &inputBuffer);
-		
-		//This part does not work. I don't know why.
-		//create view into the buffer:
-		//D3D11_SHADER_RESOURCE_VIEW_DESC srvd = {};
-		//srvd.Format = DXGI_FORMAT_UNKNOWN;
-		//srvd.ViewDimension = D3D11_SRV_DIMENSION_BUFFER;
+		device->CreateBuffer(&bd, &srd, &inputSphereBuffer);
 
-		//device->CreateShaderResourceView(inputBuffer, &srvd, &inputBufferView);
-		//deviceContext->CSSetShaderResources(0, 1, &inputBufferView);
+		//create the SRV:
+		D3D11_SHADER_RESOURCE_VIEW_DESC srvd = {};
+		srvd.Format = DXGI_FORMAT_UNKNOWN;
+		srvd.ViewDimension = D3D11_SRV_DIMENSION_BUFFER;
+		srvd.Buffer.ElementOffset = 0;
+		srvd.Buffer.ElementWidth = sizeof(Sphere);
+		srvd.Buffer.FirstElement = 0;
+		srvd.Buffer.NumElements = ARRAYSIZE(spheres);
+
+		HRESULT hr = device->CreateShaderResourceView(inputSphereBuffer, &srvd, &inputSphereBufferView); //This returns E_INVALIDARGS. I don't know why.
+
+		//Set the SRV:
+		deviceContext->CSSetShaderResources(0, 1, &inputSphereBufferView);
 	}
 	#pragma endregion
 	#pragma region Create Output for Shader:
 	{
+		//Get the backbuffer from the swap chain:
 		ID3D11Texture2D* backBuffer = nullptr;
 		D3D11_TEXTURE2D_DESC backBufferDesc = {};
 		swapchain->GetBuffer(0, __uuidof(ID3D11Texture2D), (void**)&backBuffer);
 		backBuffer->GetDesc(&backBufferDesc);
 
+		//Create the UAV:
 		D3D11_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
 		uavDesc.Buffer.FirstElement = 0;
 		uavDesc.Buffer.Flags = 0;
 		uavDesc.Buffer.NumElements = backBufferDesc.ArraySize;
 		uavDesc.Format = backBufferDesc.Format;
 		uavDesc.ViewDimension = D3D11_UAV_DIMENSION_TEXTURE2D;
-
 		UINT uavInitialCount = 0;
 
 		device->CreateUnorderedAccessView(backBuffer, &uavDesc, &outputBackBuffer);
+
+		//Set the backbuffer as UAV:
 		deviceContext->CSSetUnorderedAccessViews(0, 1, &outputBackBuffer, &uavInitialCount);
 
 		backBuffer->Release();
@@ -170,7 +185,7 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, char* cmdArgs, in
 		#pragma endregion
 		#pragma region Render to Screen:
 		{
-			deviceContext->Dispatch(WindowWidth / 8, WindowHeight / 8, 1);
+			deviceContext->Dispatch(WindowWidth/8, WindowHeight/8, 1);
 			swapchain->Present(1, 0);
 		}
 		#pragma endregion
@@ -183,7 +198,7 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, char* cmdArgs, in
 	deviceContext->Release();
 	swapchain->Release();
 	computeShader->Release();
-	inputBuffer->Release();
+	inputSphereBuffer->Release();
 	//inputBufferView->Release();
 	outputBackBuffer->Release();
 	#pragma endregion
