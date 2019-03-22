@@ -1,6 +1,6 @@
 //Problem at line: 128
 //CreateShaderResourceView returns E_INVALIDARGS.
-//Probably because I have not filled the Buffer description and/or shader resource view description properly.
+//Probably because I have not filled the Buffer description and/or shader resource view description properly (lines 105 to 126).
 
 #include <Windows.h>
 #include <d3d11.h>
