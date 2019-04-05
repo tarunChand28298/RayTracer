@@ -1,6 +1,4 @@
-//Problem at line: 128
-//CreateShaderResourceView returns E_INVALIDARGS.
-//Probably because I have not filled the Buffer description and/or shader resource view description properly (lines 105 to 126).
+//problem at line 126 because of line 119.
 
 #include <Windows.h>
 #include <d3d11.h>
@@ -85,7 +83,7 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, char* cmdArgs, in
 		scd.OutputWindow = windowHandle;
 		scd.Windowed = true;
 
-		D3D11CreateDeviceAndSwapChain(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, 0, nullptr, 0, D3D11_SDK_VERSION, &scd, &swapchain, &device, nullptr, &deviceContext);
+		D3D11CreateDeviceAndSwapChain(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, D3D11_CREATE_DEVICE_DEBUG, nullptr, 0, D3D11_SDK_VERSION, &scd, &swapchain, &device, nullptr, &deviceContext);
 	}
 	#pragma endregion
 	#pragma region Create the Shader:
@@ -125,8 +123,11 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, char* cmdArgs, in
 		srvd.Buffer.FirstElement = 0;
 		srvd.Buffer.NumElements = ARRAYSIZE(spheres);
 
-		HRESULT hr = device->CreateShaderResourceView(inputSphereBuffer, &srvd, &inputSphereBufferView); //This returns E_INVALIDARGS. I don't know why.
-
+		HRESULT hr = device->CreateShaderResourceView(inputSphereBuffer, &srvd, &inputSphereBufferView); //I get the following error:
+		//ID3D11Device::CreateShaderResourceView: The Format (0, UNKNOWN) cannot be used, when creating a View of a Buffer.
+		//My problem is, none of the dxgi formats match up with the format I want.
+		//I need 3 float vectors and one float. There is nothing like it in the dxgi format.
+		
 		//Set the SRV:
 		deviceContext->CSSetShaderResources(0, 1, &inputSphereBufferView);
 	}
