@@ -1,4 +1,4 @@
-RWTexture2D<float4> pixels: register (u0);
+RWTexture2D<float4> pixels : register(u0);
 struct Sphere
 {
     float3 position;
@@ -8,12 +8,14 @@ struct Sphere
 };
 StructuredBuffer<Sphere> spheres : register(t0);
 
-struct Ray {
+struct Ray
+{
     float3 origin;
     float3 direction;
     float3 energy;
 };
-Ray CreateRay(float3 origin, float3 direction) {
+Ray CreateRay(float3 origin, float3 direction)
+{
     Ray ray;
     ray.origin = origin;
     ray.direction = direction;
@@ -61,7 +63,8 @@ void IntersectGroundPlane(Ray ray, inout RayHit bestHit)
     float3 groundSpecular = float3(0.4f, 0.4f, 0.4f);
 
     float t = -ray.origin.y / ray.direction.y;
-    if (t > 0 && t < bestHit.distance) {
+    if (t > 0 && t < bestHit.distance)
+    {
         bestHit.distance = t;
         bestHit.position = ray.origin + t * ray.direction;
         bestHit.normal = float3(0.0f, 1.0f, 0.0f);
@@ -88,18 +91,18 @@ void IntersectSphere(Ray ray, inout RayHit bestHit, Sphere sphere)
     }
 }
 
-RayHit Trace(Ray ray) {
+RayHit Trace(Ray ray)
+{
     RayHit bestHit = CreateRayHit();
     IntersectGroundPlane(ray, bestHit);
-    for (int i = 0; i < 10; i++) {
-        for (int j = 0; j < 10; j++) {
-            Sphere s;
-            s.position = float3((float(i) - 5.0f) * 3.0f, 2.5f, (float(j) - 5.0f) * 3.0f + 10.0f);
-            s.radius = 1.0f;
-            s.albedo = float3(0.2f, 0.5f, 0.8f);
-            s.specular = float3(0.6f, 0.6f, 0.6f);
-            IntersectSphere(ray, bestHit, s);
-        }
+
+    uint numberOfSpheres;
+    uint stride;
+    spheres.GetDimensions(numberOfSpheres, stride);
+    
+    for (int i = 0; i < numberOfSpheres; i++) 
+    {
+        IntersectSphere(ray, bestHit, spheres[i]);
     }
 
     return bestHit;
@@ -125,14 +128,15 @@ float3 Shade(inout Ray ray, RayHit hit)
 
         return saturate(dot(hit.normal, directionalLight.xyz) * -1) * directionalLight.w * hit.albedo;
     }
-    else {
+    else
+    {
         ray.energy = 0.0f;
         return float3(0.5f, 0.5f, 0.5f);
     }
 }
 
 [numthreads(8, 8, 1)]
-void main( uint3 DTid : SV_DispatchThreadID )
+void main(uint3 DTid : SV_DispatchThreadID)
 {
     uint width, height;
     pixels.GetDimensions(width, height);
@@ -154,5 +158,4 @@ void main( uint3 DTid : SV_DispatchThreadID )
 
     //===================================================================================
     pixels[DTid.xy] = float4(result, 1);
-    //pixels[DTid.xy] = float4(spheres[0].position, 1);
 }
