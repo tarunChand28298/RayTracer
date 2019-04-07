@@ -1,19 +1,34 @@
 #include <Windows.h>
 #include <d3d11.h>
 #include <d3dcompiler.h>
+#include <DirectXMath.h>
 
-struct Sphere {
-	float x, y, z;
-	float radius;
-	float albedox, albedoy, albedoz;
-	float specularx, speculary, specularz;
-};
-Sphere spheres[] = {
-	{0.0f, 0.0f, 0.0f, 2.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f},
-	{3.0f, 0.0f, 0.0f, 1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f},
-	{0.0f, 3.0f, 0.0f, 1.0f, 0.0f, 3.0f, 0.0f, 0.0f, 0.0f, 0.0f},
-	{0.0f, 0.0f, 3.0f, 1.0f, 0.0f, 0.0f, 3.0f, 0.0f, 0.0f, 0.0f}
-};
+#pragma region Shader Inputs:
+	struct Sphere {
+		float x, y, z;
+		float radius;
+		float albedox, albedoy, albedoz;
+		float specularx, speculary, specularz;
+	};
+
+	Sphere spheres[] = {
+		{0.0f, 0.0f, 0.0f, 2.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f},
+		{3.0f, 0.0f, 0.0f, 1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f},
+		{0.0f, 3.0f, 0.0f, 1.0f, 0.0f, 3.0f, 0.0f, 0.0f, 0.0f, 0.0f},
+		{0.0f, 0.0f, 3.0f, 1.0f, 0.0f, 0.0f, 3.0f, 0.0f, 0.0f, 0.0f},
+		{7.0f, 7.0f, 0.0f, 1.0f, 0.0f, 0.0f, 3.0f, 0.0f, 0.0f, 0.0f}
+	};
+
+	struct Camera {
+		DirectX::XMMATRIX cameraToWorldMatrix;
+		DirectX::XMMATRIX cameraInverseProjectionMatrix;
+	};
+
+	DirectX::XMMATRIX cameraToWorldt = DirectX::XMMATRIX(1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.97f, 0.21f, 8.8f, 0.0f, 0.21f, -0.97f, -17.0f, 0.0f, 0.0f, 0.0f, 1.0f);
+	DirectX::XMMATRIX inverseProjectiont = DirectX::XMMATRIX(0.76f, 0.0f, 0.0f, 0.0f, 0.0f, 0.5f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, -1.0f, 0.0f, 0.0f, -1.6f, 1.6f);
+	
+	Camera cam = {};
+#pragma endregion
 
 #pragma region Global Variables:
 bool running = false;
@@ -47,14 +62,15 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, char* cmdArgs, in
 #pragma region Stack Variables:
 	HWND windowHandle;
 
-	ID3D11Device*				device = nullptr;
+	ID3D11Device*					device = nullptr;
 	ID3D11DeviceContext*			deviceContext = nullptr;
-	IDXGISwapChain*				swapchain = nullptr;
+	IDXGISwapChain*					swapchain = nullptr;
 
 	ID3D11ComputeShader*			computeShader = nullptr;
 
-	ID3D11Buffer*				inputSphereBuffer = nullptr;
+	ID3D11Buffer*					inputSphereBuffer = nullptr;
 	ID3D11ShaderResourceView*		inputSphereBufferView = nullptr;
+	ID3D11Buffer*					cameraBuffer = nullptr;
 
 	ID3D11UnorderedAccessView*		outputBackBuffer = nullptr;
 #pragma endregion
@@ -100,35 +116,57 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, char* cmdArgs, in
 #pragma endregion
 #pragma region Create Input for Shader:
 	{
-		//Create input buffer (Spheres):
-		D3D11_BUFFER_DESC bd = {};
-		bd.ByteWidth = sizeof(Sphere)*ARRAYSIZE(spheres);
-		bd.Usage = D3D11_USAGE_DEFAULT;
-		bd.BindFlags = D3D11_BIND_SHADER_RESOURCE;
-		bd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-		bd.StructureByteStride = sizeof(Sphere);
-		bd.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
+		//For spheres:
+		{
+			//Create input buffer:
+			D3D11_BUFFER_DESC bd = {};
+			bd.ByteWidth = sizeof(Sphere)*ARRAYSIZE(spheres);
+			bd.Usage = D3D11_USAGE_DEFAULT;
+			bd.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+			bd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+			bd.StructureByteStride = sizeof(Sphere);
+			bd.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
 
-		D3D11_SUBRESOURCE_DATA srd = {};
-		srd.pSysMem = spheres;
-		srd.SysMemPitch = 0;
-		srd.SysMemSlicePitch = 0;
+			D3D11_SUBRESOURCE_DATA srd = {};
+			srd.pSysMem = spheres;
+			srd.SysMemPitch = 0;
+			srd.SysMemSlicePitch = 0;
 
-		device->CreateBuffer(&bd, &srd, &inputSphereBuffer);
+			device->CreateBuffer(&bd, &srd, &inputSphereBuffer);
 
-		//create the SRV (Spheres):
-		D3D11_SHADER_RESOURCE_VIEW_DESC srvd = {};
-		srvd.Format = DXGI_FORMAT_UNKNOWN;
-		srvd.ViewDimension = D3D11_SRV_DIMENSION_BUFFER;
-		srvd.Buffer.ElementOffset = 0;
-		srvd.Buffer.ElementWidth = sizeof(Sphere);
-		srvd.Buffer.FirstElement = 0;
-		srvd.Buffer.NumElements = ARRAYSIZE(spheres);
+			//create the SRV:
+			D3D11_SHADER_RESOURCE_VIEW_DESC srvd = {};
+			srvd.Format = DXGI_FORMAT_UNKNOWN;
+			srvd.ViewDimension = D3D11_SRV_DIMENSION_BUFFER;
+			srvd.Buffer.ElementOffset = 0;
+			srvd.Buffer.ElementWidth = sizeof(Sphere);
+			srvd.Buffer.FirstElement = 0;
+			srvd.Buffer.NumElements = ARRAYSIZE(spheres);
 
-		device->CreateShaderResourceView(inputSphereBuffer, &srvd, &inputSphereBufferView);
+			device->CreateShaderResourceView(inputSphereBuffer, &srvd, &inputSphereBufferView);
 
-		//Set the SRV (Spheres):
-		deviceContext->CSSetShaderResources(0, 1, &inputSphereBufferView);
+			//Set the SRV:
+			deviceContext->CSSetShaderResources(0, 1, &inputSphereBufferView);
+		}
+		//For the matricies:
+		{
+			cam.cameraToWorldMatrix = DirectX::XMMatrixTranspose(cameraToWorldt);
+			cam.cameraInverseProjectionMatrix = DirectX::XMMatrixTranspose(inverseProjectiont);
+
+			D3D11_BUFFER_DESC cbd = {};
+			cbd.ByteWidth = sizeof(Camera);
+			cbd.Usage = D3D11_USAGE_DYNAMIC;
+			cbd.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+			cbd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+			cbd.StructureByteStride = 0;
+			cbd.MiscFlags = 0;
+
+			D3D11_SUBRESOURCE_DATA csd1 = {};
+			csd1.pSysMem = &cam;
+
+			device->CreateBuffer(&cbd, &csd1, &cameraBuffer);
+			deviceContext->CSSetConstantBuffers(0, 1, &cameraBuffer);
+		}
 	}
 #pragma endregion
 #pragma region Create Output for Shader:
@@ -202,6 +240,7 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, char* cmdArgs, in
 	computeShader->Release();
 	inputSphereBuffer->Release();
 	inputSphereBufferView->Release();
+	cameraBuffer->Release();
 	outputBackBuffer->Release();
 #pragma endregion
 
