@@ -1,4 +1,11 @@
 RWTexture2D<float4> pixels : register(u0);
+
+cbuffer Camera : register(b0)
+{
+    float4x4 cameraToWorld;
+    float4x4 cameraInverseProjection;
+};
+
 struct Sphere
 {
     float3 position;
@@ -44,10 +51,7 @@ RayHit CreateRayHit()
 
 Ray CreateCameraRay(float2 uv)
 {
-    
-    float4x4 cameraToWorld = float4x4(1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.97f, 0.21f, 8.8f, 0.0f, 0.21f, -0.97f, -17.0f, 0.0f, 0.0f, 0.0f, 1.0f);
     float4x4 cameraInverseProjection = float4x4(0.76f, 0.0f, 0.0f, 0.0f, 0.0f, 0.5f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, -1.0f, 0.0f, 0.0f, -1.6f, 1.6f);
-
     float3 origin = mul(cameraToWorld, float4(0.0f, 0.0f, 0.0f, 1.0f)).xyz;
     float3 direction = mul(cameraInverseProjection, float4(uv, 0.0f, 1.0f)).xyz;
 
@@ -99,8 +103,7 @@ RayHit Trace(Ray ray)
     uint numberOfSpheres;
     uint stride;
     spheres.GetDimensions(numberOfSpheres, stride);
-    
-    for (int i = 0; i < numberOfSpheres; i++) 
+    for (int i = 0; i < numberOfSpheres; i++)
     {
         IntersectSphere(ray, bestHit, spheres[i]);
     }
