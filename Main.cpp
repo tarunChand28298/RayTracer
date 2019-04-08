@@ -3,6 +3,16 @@
 #include <d3dcompiler.h>
 #include <DirectXMath.h>
 
+#pragma region Global Variables:
+bool running = false;
+int WindowWidth = 800;
+int WindowHeight = 600;
+float NearZ = 1.0f;
+float FarZ = 10000.0f;
+float FovAngleYDeg = 90.0f;
+float FovAngleY = FovAngleYDeg * 0.0174533f;
+#pragma endregion
+
 #pragma region Shader Inputs:
 	struct Sphere {
 		float x, y, z;
@@ -16,7 +26,7 @@
 		{3.0f, 0.0f, 0.0f, 1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f},
 		{0.0f, 3.0f, 0.0f, 1.0f, 0.0f, 3.0f, 0.0f, 0.0f, 0.0f, 0.0f},
 		{0.0f, 0.0f, 3.0f, 1.0f, 0.0f, 0.0f, 3.0f, 0.0f, 0.0f, 0.0f},
-		{7.0f, 7.0f, 0.0f, 1.0f, 0.0f, 0.0f, 3.0f, 0.0f, 0.0f, 0.0f}
+		{7.0f, 7.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.5f, 0.0f, 0.0f, 0.0f}
 	};
 
 	struct Camera {
@@ -25,16 +35,11 @@
 	};
 
 	DirectX::XMMATRIX cameraToWorldt = DirectX::XMMATRIX(1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.97f, 0.21f, 8.8f, 0.0f, 0.21f, -0.97f, -17.0f, 0.0f, 0.0f, 0.0f, 1.0f);
-	DirectX::XMMATRIX inverseProjectiont = DirectX::XMMATRIX(0.76f, 0.0f, 0.0f, 0.0f, 0.0f, 0.5f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, -1.0f, 0.0f, 0.0f, -1.6f, 1.6f);
+	DirectX::XMMATRIX inverseProjectiont = DirectX::XMMatrixInverse(nullptr, DirectX::XMMatrixPerspectiveFovLH(FovAngleY, float(WindowWidth)/float(WindowHeight), NearZ, FarZ));
 	
 	Camera cam = {};
 #pragma endregion
 
-#pragma region Global Variables:
-bool running = false;
-int WindowWidth = 800;
-int WindowHeight = 600;
-#pragma endregion
 
 
 LRESULT CALLBACK DirectXWindowProc(HWND windowHanlde, UINT message, WPARAM wparam, LPARAM lparam) {
@@ -145,8 +150,6 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, char* cmdArgs, in
 
 			device->CreateShaderResourceView(inputSphereBuffer, &srvd, &inputSphereBufferView);
 
-			//Set the SRV:
-			deviceContext->CSSetShaderResources(0, 1, &inputSphereBufferView);
 		}
 		//For the matricies:
 		{
@@ -155,9 +158,9 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, char* cmdArgs, in
 
 			D3D11_BUFFER_DESC cbd = {};
 			cbd.ByteWidth = sizeof(Camera);
-			cbd.Usage = D3D11_USAGE_DYNAMIC;
+			cbd.Usage = D3D11_USAGE_DEFAULT;
 			cbd.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
-			cbd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+			cbd.CPUAccessFlags = 0u;
 			cbd.StructureByteStride = 0;
 			cbd.MiscFlags = 0;
 
@@ -165,7 +168,6 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, char* cmdArgs, in
 			csd1.pSysMem = &cam;
 
 			device->CreateBuffer(&cbd, &csd1, &cameraBuffer);
-			deviceContext->CSSetConstantBuffers(0, 1, &cameraBuffer);
 		}
 	}
 #pragma endregion
@@ -220,11 +222,28 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, char* cmdArgs, in
 #pragma endregion
 #pragma region Update Frame:
 		{
-
+			spheres[0].x += 0.1f;
+			spheres[4].albedox += 0.01f;
+			if (spheres[0].x > 8.0f)
+			{
+				spheres[0].x = -8.0f;
+			}
+			if (spheres[4].albedox > 1.0f)
+			{
+				spheres[4].albedox = 0.0f;
+			}
 		}
 #pragma endregion
 #pragma region Render to Screen:
 		{
+
+			//Set the Inputs:
+			deviceContext->CSSetShaderResources(0, 1, &inputSphereBufferView);
+			deviceContext->CSSetConstantBuffers(0, 1, &cameraBuffer);
+			deviceContext->UpdateSubresource(inputSphereBuffer, 0, 0, spheres, 0, 0);
+			deviceContext->UpdateSubresource(cameraBuffer, 0, 0, &cam, 0, 0);
+
+			//Render:
 			deviceContext->Dispatch(WindowWidth / 8, WindowHeight / 8, 1);
 			swapchain->Present(1, 0);
 		}
