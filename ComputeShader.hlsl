@@ -63,8 +63,8 @@ Ray CreateCameraRay(float2 uv)
 
 void IntersectGroundPlane(Ray ray, inout RayHit bestHit)
 {
-    float3 groundAlbedo = float3(0.1f, 0.1f, 0.1f);
-    float3 groundSpecular = float3(0.4f, 0.4f, 0.4f);
+    float3 groundAlbedo = float3(0.1f, 0.6f, 0.1f);
+    float3 groundSpecular = float3(0.2f, 0.2f, 0.2f);
 
     float t = -ray.origin.y / ray.direction.y;
     if (t > 0 && t < bestHit.distance)
@@ -134,7 +134,7 @@ float3 Shade(inout Ray ray, RayHit hit)
     else
     {
         ray.energy = 0.0f;
-        return float3(0.5f, 0.5f, 0.5f);
+        return float3(0.1f, 0.5f, 0.9f);
     }
 }
 
