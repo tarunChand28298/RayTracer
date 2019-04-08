@@ -9,7 +9,7 @@ int WindowWidth = 800;
 int WindowHeight = 600;
 float NearZ = 1.0f;
 float FarZ = 10000.0f;
-float FovAngleYDeg = 90.0f;
+float FovAngleYDeg = 60.0f;
 float FovAngleY = FovAngleYDeg * 0.0174533f;
 #pragma endregion
 
@@ -22,11 +22,11 @@ float FovAngleY = FovAngleYDeg * 0.0174533f;
 	};
 
 	Sphere spheres[] = {
-		{0.0f, 0.0f, 0.0f, 2.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f},
-		{3.0f, 0.0f, 0.0f, 1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f},
-		{0.0f, 3.0f, 0.0f, 1.0f, 0.0f, 3.0f, 0.0f, 0.0f, 0.0f, 0.0f},
-		{0.0f, 0.0f, 3.0f, 1.0f, 0.0f, 0.0f, 3.0f, 0.0f, 0.0f, 0.0f},
-		{7.0f, 7.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.5f, 0.0f, 0.0f, 0.0f}
+		{0.0f, 3.0f, 0.0f, 2.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f},
+		{3.0f, 3.0f, 0.0f, 1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f},
+		{0.0f, 6.0f, 0.0f, 1.0f, 0.0f, 3.0f, 0.0f, 0.0f, 0.0f, 0.0f},
+		{0.0f, 3.0f, 3.0f, 1.0f, 0.0f, 0.0f, 3.0f, 0.0f, 0.0f, 0.0f},
+		{7.0f, 7.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.5f, 1.0f, 1.0f, 1.0f}
 	};
 
 	struct Camera {
@@ -39,7 +39,6 @@ float FovAngleY = FovAngleYDeg * 0.0174533f;
 	
 	Camera cam = {};
 #pragma endregion
-
 
 
 LRESULT CALLBACK DirectXWindowProc(HWND windowHanlde, UINT message, WPARAM wparam, LPARAM lparam) {
@@ -67,15 +66,15 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, char* cmdArgs, in
 #pragma region Stack Variables:
 	HWND windowHandle;
 
-	ID3D11Device*					device = nullptr;
+	ID3D11Device*				device = nullptr;
 	ID3D11DeviceContext*			deviceContext = nullptr;
-	IDXGISwapChain*					swapchain = nullptr;
+	IDXGISwapChain*				swapchain = nullptr;
 
 	ID3D11ComputeShader*			computeShader = nullptr;
 
-	ID3D11Buffer*					inputSphereBuffer = nullptr;
+	ID3D11Buffer*				inputSphereBuffer = nullptr;
 	ID3D11ShaderResourceView*		inputSphereBufferView = nullptr;
-	ID3D11Buffer*					cameraBuffer = nullptr;
+	ID3D11Buffer*				cameraBuffer = nullptr;
 
 	ID3D11UnorderedAccessView*		outputBackBuffer = nullptr;
 #pragma endregion
@@ -149,7 +148,7 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, char* cmdArgs, in
 			srvd.Buffer.NumElements = ARRAYSIZE(spheres);
 
 			device->CreateShaderResourceView(inputSphereBuffer, &srvd, &inputSphereBufferView);
-
+			deviceContext->CSSetShaderResources(0, 1, &inputSphereBufferView);
 		}
 		//For the matricies:
 		{
@@ -168,6 +167,7 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, char* cmdArgs, in
 			csd1.pSysMem = &cam;
 
 			device->CreateBuffer(&cbd, &csd1, &cameraBuffer);
+			deviceContext->CSSetConstantBuffers(0, 1, &cameraBuffer);
 		}
 	}
 #pragma endregion
@@ -196,6 +196,7 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, char* cmdArgs, in
 		backBuffer->Release();
 	}
 #pragma endregion
+
 
 	//=============================================================================================================================================
 
@@ -236,14 +237,9 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, char* cmdArgs, in
 #pragma endregion
 #pragma region Render to Screen:
 		{
-
-			//Set the Inputs:
-			deviceContext->CSSetShaderResources(0, 1, &inputSphereBufferView);
-			deviceContext->CSSetConstantBuffers(0, 1, &cameraBuffer);
 			deviceContext->UpdateSubresource(inputSphereBuffer, 0, 0, spheres, 0, 0);
 			deviceContext->UpdateSubresource(cameraBuffer, 0, 0, &cam, 0, 0);
 
-			//Render:
 			deviceContext->Dispatch(WindowWidth / 8, WindowHeight / 8, 1);
 			swapchain->Present(1, 0);
 		}
