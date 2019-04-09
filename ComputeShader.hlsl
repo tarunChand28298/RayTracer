@@ -5,6 +5,10 @@ cbuffer Camera : register(b0)
     float4x4 cameraToWorld;
     float4x4 cameraInverseProjection;
 };
+cbuffer DirectionalLight : register(b1)
+{
+    float4 directionalLight;
+}
 
 struct Sphere
 {
@@ -63,7 +67,7 @@ Ray CreateCameraRay(float2 uv)
 
 void IntersectGroundPlane(Ray ray, inout RayHit bestHit)
 {
-    float3 groundAlbedo = float3(0.1f, 0.6f, 0.1f);
+    float3 groundAlbedo = float3(0.31f, 0.80f, 0.41f);
     float3 groundSpecular = float3(0.2f, 0.2f, 0.2f);
 
     float t = -ray.origin.y / ray.direction.y;
@@ -112,8 +116,6 @@ RayHit Trace(Ray ray)
 }
 float3 Shade(inout Ray ray, RayHit hit)
 {
-    float4 directionalLight = float4(-0.3, -0.8, 0.6, 1);
-
     if (hit.distance < 1.#INF)
     {
 
@@ -134,7 +136,7 @@ float3 Shade(inout Ray ray, RayHit hit)
     else
     {
         ray.energy = 0.0f;
-        return float3(0.1f, 0.5f, 0.9f);
+        return float3(0.80f, 0.68f, 1.0f);
     }
 }
 
