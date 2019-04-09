@@ -11,6 +11,8 @@ float NearZ = 1.0f;
 float FarZ = 10000.0f;
 float FovAngleYDeg = 60.0f;
 float FovAngleY = FovAngleYDeg * 0.0174533f;
+
+float mainSphereAngle = 0.0f;
 #pragma endregion
 
 #pragma region Shader Inputs:
@@ -26,13 +28,18 @@ float FovAngleY = FovAngleYDeg * 0.0174533f;
 		{3.0f, 3.0f, 0.0f, 1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f},
 		{0.0f, 6.0f, 0.0f, 1.0f, 0.0f, 3.0f, 0.0f, 0.0f, 0.0f, 0.0f},
 		{0.0f, 3.0f, 3.0f, 1.0f, 0.0f, 0.0f, 3.0f, 0.0f, 0.0f, 0.0f},
-		{7.0f, 7.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.5f, 1.0f, 1.0f, 1.0f}
+		{0.0f, 3.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.5f, 1.0f, 1.0f, 1.0f}
 	};
 
 	struct Camera {
 		DirectX::XMMATRIX cameraToWorldMatrix;
 		DirectX::XMMATRIX cameraInverseProjectionMatrix;
 	};
+
+	struct DirectionalLight {
+		float x, y, z, w;
+	};
+	DirectionalLight lightDirection = {};
 
 	DirectX::XMMATRIX cameraToWorldt = DirectX::XMMATRIX(1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.97f, 0.21f, 8.8f, 0.0f, 0.21f, -0.97f, -17.0f, 0.0f, 0.0f, 0.0f, 1.0f);
 	DirectX::XMMATRIX inverseProjectiont = DirectX::XMMatrixInverse(nullptr, DirectX::XMMatrixPerspectiveFovLH(FovAngleY, float(WindowWidth)/float(WindowHeight), NearZ, FarZ));
@@ -75,6 +82,7 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, char* cmdArgs, in
 	ID3D11Buffer*				inputSphereBuffer = nullptr;
 	ID3D11ShaderResourceView*		inputSphereBufferView = nullptr;
 	ID3D11Buffer*				cameraBuffer = nullptr;
+	ID3D11Buffer*				directionalLightBuffer = nullptr;
 
 	ID3D11UnorderedAccessView*		outputBackBuffer = nullptr;
 #pragma endregion
@@ -169,6 +177,24 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, char* cmdArgs, in
 			device->CreateBuffer(&cbd, &csd1, &cameraBuffer);
 			deviceContext->CSSetConstantBuffers(0, 1, &cameraBuffer);
 		}
+		//For Directional Light:
+		{
+			lightDirection = { -0.4, -0.75, 0.2, 1 };
+
+			D3D11_BUFFER_DESC cbd = {};
+			cbd.ByteWidth = sizeof(DirectionalLight);
+			cbd.Usage = D3D11_USAGE_DEFAULT;
+			cbd.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+			cbd.CPUAccessFlags = 0u;
+			cbd.StructureByteStride = 0;
+			cbd.MiscFlags = 0;
+
+			D3D11_SUBRESOURCE_DATA csd1 = {};
+			csd1.pSysMem = &lightDirection;
+
+			device->CreateBuffer(&cbd, &csd1, &directionalLightBuffer);
+			deviceContext->CSSetConstantBuffers(1, 1, &directionalLightBuffer);
+		}
 	}
 #pragma endregion
 #pragma region Create Output for Shader:
@@ -223,15 +249,21 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, char* cmdArgs, in
 #pragma endregion
 #pragma region Update Frame:
 		{
-			spheres[0].x += 0.1f;
-			spheres[4].albedox += 0.01f;
-			if (spheres[0].x > 8.0f)
-			{
-				spheres[0].x = -8.0f;
-			}
-			if (spheres[4].albedox > 1.0f)
-			{
-				spheres[4].albedox = 0.0f;
+			float xAxis;
+			float zAxis;
+			DirectX::XMScalarSinCos(&zAxis, &xAxis, mainSphereAngle);
+
+			spheres[0].x = xAxis * 7.0f;
+			spheres[0].z = zAxis * 7.0f;
+
+			spheres[4].albedox = zAxis;
+			spheres[4].albedoy = xAxis;
+
+
+
+			mainSphereAngle += 0.05f;
+			if (mainSphereAngle > 6.2831f) {
+				mainSphereAngle = 0.0f;
 			}
 		}
 #pragma endregion
@@ -239,6 +271,7 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, char* cmdArgs, in
 		{
 			deviceContext->UpdateSubresource(inputSphereBuffer, 0, 0, spheres, 0, 0);
 			deviceContext->UpdateSubresource(cameraBuffer, 0, 0, &cam, 0, 0);
+			deviceContext->UpdateSubresource(directionalLightBuffer, 0, 0, &lightDirection, 0, 0);
 
 			deviceContext->Dispatch(WindowWidth / 8, WindowHeight / 8, 1);
 			swapchain->Present(1, 0);
