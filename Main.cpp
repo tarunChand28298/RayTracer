@@ -2,17 +2,18 @@
 #include <d3d11.h>
 #include <d3dcompiler.h>
 #include <DirectXMath.h>
+#include <thread>
 
 #pragma region Global Variables:
-bool running = false;
-int WindowWidth = 800;
-int WindowHeight = 600;
-float NearZ = 1.0f;
-float FarZ = 10000.0f;
-float FovAngleYDeg = 60.0f;
-float FovAngleY = FovAngleYDeg * 0.0174533f;
-
-float mainSphereAngle = 0.0f;
+	bool running = false;
+	int WindowWidth = 800;
+	int WindowHeight = 600;
+	float NearZ = 1.0f;
+	float FarZ = 10000.0f;
+	float FovAngleYDeg = 60.0f;
+	float FovAngleY = FovAngleYDeg * 0.0174533f;
+	
+	float mainSphereAngle = 0.0f;
 #pragma endregion
 
 #pragma region Shader Inputs:
@@ -40,55 +41,81 @@ float mainSphereAngle = 0.0f;
 		float x, y, z, w;
 	};
 	DirectionalLight lightDirection = {};
+	Camera cam = {};
 
 	DirectX::XMMATRIX cameraToWorldt = DirectX::XMMATRIX(1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.97f, 0.21f, 8.8f, 0.0f, 0.21f, -0.97f, -17.0f, 0.0f, 0.0f, 0.0f, 1.0f);
-	DirectX::XMMATRIX inverseProjectiont = DirectX::XMMatrixInverse(nullptr, DirectX::XMMatrixPerspectiveFovLH(FovAngleY, float(WindowWidth)/float(WindowHeight), NearZ, FarZ));
-	
-	Camera cam = {};
+	DirectX::XMMATRIX inverseProjectiont = DirectX::XMMatrixInverse(nullptr, DirectX::XMMatrixPerspectiveFovLH(FovAngleY, float(WindowWidth) / float(WindowHeight), NearZ, FarZ));
 #pragma endregion
+
+#pragma region Static variables:
+	HWND windowHandle;
+	ID3D11Device*				device = nullptr;
+	ID3D11DeviceContext*			deviceContext = nullptr;
+	IDXGISwapChain*				swapchain = nullptr;
+	ID3D11ComputeShader*			computeShader = nullptr;
+	ID3D11Buffer*				inputSphereBuffer = nullptr;
+	ID3D11ShaderResourceView*		inputSphereBufferView = nullptr;
+	ID3D11Buffer*				cameraBuffer = nullptr;
+	ID3D11Buffer*				directionalLightBuffer = nullptr;
+	ID3D11UnorderedAccessView*		outputBackBuffer = nullptr;
+#pragma endregion 
 
 
 LRESULT CALLBACK DirectXWindowProc(HWND windowHanlde, UINT message, WPARAM wparam, LPARAM lparam) {
 
 	switch (message) {
-	case WM_QUIT: {
-		DestroyWindow(windowHanlde);
-		break;
-	}
-	case WM_DESTROY: {
-		running = false;
-		break;
-	}
-	default: {
-		break;
-	}
+		case WM_QUIT: {
+			DestroyWindow(windowHanlde);
+			break;
+		}
+		case WM_DESTROY: {
+			running = false;
+			break;
+		}
+		default: {
+			break;
+		}
 	}
 
 	return DefWindowProc(windowHanlde, message, wparam, lparam);
 }
+void RenderLoop() {
+	while (running) {
+		deviceContext->UpdateSubresource(inputSphereBuffer, 0, 0, spheres, 0, 0);
+		deviceContext->UpdateSubresource(cameraBuffer, 0, 0, &cam, 0, 0);
+		deviceContext->UpdateSubresource(directionalLightBuffer, 0, 0, &lightDirection, 0, 0);
+
+		deviceContext->Dispatch(WindowWidth / 8, WindowHeight / 8, 1);
+		swapchain->Present(1, 0);
+	}
+}
+void UpdateLoop() {
+	while (running) {
+		float xAxis;
+		float zAxis;
+		DirectX::XMScalarSinCos(&zAxis, &xAxis, mainSphereAngle);
+
+		spheres[0].x = xAxis * 7.0f;
+		spheres[0].z = zAxis * 7.0f;
+
+		spheres[4].albedox = zAxis;
+		spheres[4].albedoy = xAxis;
+
+		mainSphereAngle += 0.0000005f;
+		if (mainSphereAngle > 6.2831f) {
+			mainSphereAngle = 0.0f;
+		}
+	}
+}
+void InputLoop() {
+	while (running) {
+
+	}
+}
 
 int WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, char* cmdArgs, int cmdShow) {
 	//=============================================================================================================================================
-
-#pragma region Stack Variables:
-	HWND windowHandle;
-
-	ID3D11Device*				device = nullptr;
-	ID3D11DeviceContext*			deviceContext = nullptr;
-	IDXGISwapChain*				swapchain = nullptr;
-
-	ID3D11ComputeShader*			computeShader = nullptr;
-
-	ID3D11Buffer*				inputSphereBuffer = nullptr;
-	ID3D11ShaderResourceView*		inputSphereBufferView = nullptr;
-	ID3D11Buffer*				cameraBuffer = nullptr;
-	ID3D11Buffer*				directionalLightBuffer = nullptr;
-
-	ID3D11UnorderedAccessView*		outputBackBuffer = nullptr;
-#pragma endregion
-
-	//=============================================================================================================================================
-#pragma region Create Window:
+	#pragma region Create Window:
 	{
 		WNDCLASS wc = {};
 		wc.hInstance = instance;
@@ -98,11 +125,12 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, char* cmdArgs, in
 		wc.hCursor = LoadCursor(nullptr, IDC_ARROW);
 		RegisterClass(&wc);
 
-		windowHandle = CreateWindow("DirectXWindowClass", "DirectX Render Window", WS_OVERLAPPED | WS_SYSMENU | WS_MINIMIZEBOX, CW_USEDEFAULT, CW_USEDEFAULT, WindowWidth, WindowHeight, nullptr, nullptr, instance, nullptr);
+		windowHandle = CreateWindow("DirectXWindowClass", "DirectX Render Window", WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, WindowWidth, WindowHeight, nullptr, nullptr, instance, nullptr);
 		ShowWindow(windowHandle, SW_SHOW);
 	}
-#pragma endregion
-#pragma region Create Device and SwapChain:
+	#pragma endregion
+	
+	#pragma region Create Device and SwapChain:
 	{
 		DXGI_SWAP_CHAIN_DESC scd = {};
 		scd.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
@@ -114,8 +142,9 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, char* cmdArgs, in
 		//in the end, change creation flag from D3D11_CREATE_DEVICE_DEBUG to 0.
 		D3D11CreateDeviceAndSwapChain(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, D3D11_CREATE_DEVICE_DEBUG, nullptr, 0, D3D11_SDK_VERSION, &scd, &swapchain, &device, nullptr, &deviceContext);
 	}
-#pragma endregion
-#pragma region Create the Shader:
+	#pragma endregion
+	
+	#pragma region Create the Shader:
 	{
 		ID3D10Blob* shaderData;
 		D3DReadFileToBlob((LPCWSTR)L"ComputeShader.cso", &shaderData);
@@ -125,8 +154,9 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, char* cmdArgs, in
 
 		shaderData->Release();
 	}
-#pragma endregion
-#pragma region Create Input for Shader:
+	#pragma endregion
+	
+	#pragma region Create Input for Shader:
 	{
 		//For spheres:
 		{
@@ -196,8 +226,9 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, char* cmdArgs, in
 			deviceContext->CSSetConstantBuffers(1, 1, &directionalLightBuffer);
 		}
 	}
-#pragma endregion
-#pragma region Create Output for Shader:
+	#pragma endregion
+	
+	#pragma region Create Output for Shader:
 	{
 		//Get the backbuffer from the swap chain:
 		ID3D11Texture2D* backBuffer = nullptr;
@@ -221,76 +252,47 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, char* cmdArgs, in
 
 		backBuffer->Release();
 	}
-#pragma endregion
-
+	#pragma endregion
 
 	//=============================================================================================================================================
 
 	running = true;
-	while (running) {
-#pragma region Handle Window Messages:
-		{
-			MSG message = {};
-			while (PeekMessage(&message, nullptr, 0, 0, PM_REMOVE)) {
-				TranslateMessage(&message);
-				DispatchMessage(&message);
+	#pragma region Main Loop:
+		std::thread InputThread(InputLoop);
+		std::thread UpdateThread(UpdateLoop);
+		std::thread renderThread(RenderLoop);
+	
+		while (running)
+	{
+		MSG message = {};
+		while (PeekMessage(&message, nullptr, 0, 0, PM_REMOVE)) {
+			TranslateMessage(&message);
+			DispatchMessage(&message);
 
-				if (message.message == WM_CLOSE) {
-					PostQuitMessage(0);
-					running = false;
-				}
+			if (message.message == WM_CLOSE) {
+				PostQuitMessage(0);
+				running = false;
 			}
 		}
-#pragma endregion
-#pragma region Handle Input:
-		{
-
-		}
-#pragma endregion
-#pragma region Update Frame:
-		{
-			float xAxis;
-			float zAxis;
-			DirectX::XMScalarSinCos(&zAxis, &xAxis, mainSphereAngle);
-
-			spheres[0].x = xAxis * 7.0f;
-			spheres[0].z = zAxis * 7.0f;
-
-			spheres[4].albedox = zAxis;
-			spheres[4].albedoy = xAxis;
-
-
-
-			mainSphereAngle += 0.05f;
-			if (mainSphereAngle > 6.2831f) {
-				mainSphereAngle = 0.0f;
-			}
-		}
-#pragma endregion
-#pragma region Render to Screen:
-		{
-			deviceContext->UpdateSubresource(inputSphereBuffer, 0, 0, spheres, 0, 0);
-			deviceContext->UpdateSubresource(cameraBuffer, 0, 0, &cam, 0, 0);
-			deviceContext->UpdateSubresource(directionalLightBuffer, 0, 0, &lightDirection, 0, 0);
-
-			deviceContext->Dispatch(WindowWidth / 8, WindowHeight / 8, 1);
-			swapchain->Present(1, 0);
-		}
-#pragma endregion
 	}
+	#pragma endregion
 
 	//=============================================================================================================================================
 
-#pragma region Clean Up:
-	device->Release();
-	deviceContext->Release();
-	swapchain->Release();
-	computeShader->Release();
-	inputSphereBuffer->Release();
-	inputSphereBufferView->Release();
-	cameraBuffer->Release();
-	outputBackBuffer->Release();
-#pragma endregion
+	#pragma region Clean Up:
+		InputThread.join();
+		UpdateThread.join();
+		renderThread.join();
+
+		device->Release();
+		deviceContext->Release();
+		swapchain->Release();
+		computeShader->Release();
+		inputSphereBuffer->Release();
+		inputSphereBufferView->Release();
+		cameraBuffer->Release();
+		outputBackBuffer->Release();
+	#pragma endregion
 
 	return 0;
 }
