@@ -8,3 +8,4 @@ Note:
     a. dxgi.lib
     b. d3dcompiler.lib
     c. d3d11.lib
+    d. Xinput.lib
