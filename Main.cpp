@@ -1,5 +1,6 @@
 #include <Windows.h>
 #include <d3d11.h>
+#include <Xinput.h>
 #include <d3dcompiler.h>
 #include <DirectXMath.h>
 #include <thread>
@@ -10,10 +11,12 @@
 	int WindowHeight = 600;
 	float NearZ = 1.0f;
 	float FarZ = 10000.0f;
-	float FovAngleYDeg = 60.0f;
+	float FovAngleYDeg = 2.0f;
 	float FovAngleY = FovAngleYDeg * 0.0174533f;
 	
 	float mainSphereAngle = 0.0f;
+	float inputX;
+	float inputY;
 #pragma endregion
 
 #pragma region Shader Inputs:
@@ -23,7 +26,7 @@
 		float albedox, albedoy, albedoz;
 		float specularx, speculary, specularz;
 	};
-
+	
 	Sphere spheres[] = {
 		{0.0f, 3.0f, 0.0f, 2.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f},
 		{3.0f, 3.0f, 0.0f, 1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f},
@@ -31,18 +34,19 @@
 		{0.0f, 3.0f, 3.0f, 1.0f, 0.0f, 0.0f, 3.0f, 0.0f, 0.0f, 0.0f},
 		{0.0f, 3.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.5f, 1.0f, 1.0f, 1.0f}
 	};
-
+	
 	struct Camera {
 		DirectX::XMMATRIX cameraToWorldMatrix;
 		DirectX::XMMATRIX cameraInverseProjectionMatrix;
 	};
-
+	
 	struct DirectionalLight {
 		float x, y, z, w;
 	};
+
 	DirectionalLight lightDirection = {};
 	Camera cam = {};
-
+	
 	DirectX::XMMATRIX cameraToWorldt = DirectX::XMMATRIX(1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.97f, 0.21f, 8.8f, 0.0f, 0.21f, -0.97f, -17.0f, 0.0f, 0.0f, 0.0f, 1.0f);
 	DirectX::XMMATRIX inverseProjectiont = DirectX::XMMatrixInverse(nullptr, DirectX::XMMatrixPerspectiveFovLH(FovAngleY, float(WindowWidth) / float(WindowHeight), NearZ, FarZ));
 #pragma endregion
@@ -64,17 +68,17 @@
 LRESULT CALLBACK DirectXWindowProc(HWND windowHanlde, UINT message, WPARAM wparam, LPARAM lparam) {
 
 	switch (message) {
-		case WM_QUIT: {
-			DestroyWindow(windowHanlde);
-			break;
-		}
-		case WM_DESTROY: {
-			running = false;
-			break;
-		}
-		default: {
-			break;
-		}
+	case WM_QUIT: {
+		DestroyWindow(windowHanlde);
+		break;
+	}
+	case WM_DESTROY: {
+		running = false;
+		break;
+	}
+	default: {
+		break;
+	}
 	}
 
 	return DefWindowProc(windowHanlde, message, wparam, lparam);
@@ -95,8 +99,8 @@ void UpdateLoop() {
 		float zAxis;
 		DirectX::XMScalarSinCos(&zAxis, &xAxis, mainSphereAngle);
 
-		spheres[0].x = xAxis * 7.0f;
-		spheres[0].z = zAxis * 7.0f;
+		spheres[0].x += inputX * 0.000005f;
+		spheres[0].z += inputY * 0.000005f;
 
 		spheres[4].albedox = zAxis;
 		spheres[4].albedoy = xAxis;
@@ -109,10 +113,16 @@ void UpdateLoop() {
 }
 void InputLoop() {
 	while (running) {
+		XINPUT_STATE controllerState;
+		XInputGetState(0, &controllerState);
 
+		short stickX = controllerState.Gamepad.sThumbLX;
+		short stickY = controllerState.Gamepad.sThumbLY;
+
+		inputX = float(stickX) / 32768.0;
+		inputY = float(stickY) / 32768.0;
 	}
 }
-
 int WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, char* cmdArgs, int cmdShow) {
 	//=============================================================================================================================================
 	#pragma region Create Window:
@@ -129,7 +139,6 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, char* cmdArgs, in
 		ShowWindow(windowHandle, SW_SHOW);
 	}
 	#pragma endregion
-	
 	#pragma region Create Device and SwapChain:
 	{
 		DXGI_SWAP_CHAIN_DESC scd = {};
@@ -143,7 +152,6 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, char* cmdArgs, in
 		D3D11CreateDeviceAndSwapChain(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, D3D11_CREATE_DEVICE_DEBUG, nullptr, 0, D3D11_SDK_VERSION, &scd, &swapchain, &device, nullptr, &deviceContext);
 	}
 	#pragma endregion
-	
 	#pragma region Create the Shader:
 	{
 		ID3D10Blob* shaderData;
@@ -155,7 +163,6 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, char* cmdArgs, in
 		shaderData->Release();
 	}
 	#pragma endregion
-	
 	#pragma region Create Input for Shader:
 	{
 		//For spheres:
@@ -227,7 +234,6 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, char* cmdArgs, in
 		}
 	}
 	#pragma endregion
-	
 	#pragma region Create Output for Shader:
 	{
 		//Get the backbuffer from the swap chain:
@@ -261,7 +267,6 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, char* cmdArgs, in
 		std::thread InputThread(InputLoop);
 		std::thread UpdateThread(UpdateLoop);
 		std::thread renderThread(RenderLoop);
-	
 		while (running)
 	{
 		MSG message = {};
