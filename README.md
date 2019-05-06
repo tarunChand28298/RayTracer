@@ -5,7 +5,7 @@ I would be extremely grateful if somebody tries to help me in this. Thanks.
 Note:
 1. Use shader model 5.0 or above for the compute shader.
 2. Add the following libraries to the linker:
-    a. dxgi.lib
-    b. d3dcompiler.lib
-    c. d3d11.lib
-    d. Xinput.lib
+    a. dxgi.lib<br />
+    b. d3dcompiler.lib<br />
+    c. d3d11.lib<br />
+    d. Xinput.lib<br />
