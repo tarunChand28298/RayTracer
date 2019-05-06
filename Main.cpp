@@ -83,7 +83,7 @@ LRESULT CALLBACK DirectXWindowProc(HWND windowHanlde, UINT message, WPARAM wpara
 
 	return DefWindowProc(windowHanlde, message, wparam, lparam);
 }
-void RenderLoop() {
+void OutputLoop() {
 	while (running) {
 		deviceContext->UpdateSubresource(inputSphereBuffer, 0, 0, spheres, 0, 0);
 		deviceContext->UpdateSubresource(cameraBuffer, 0, 0, &cam, 0, 0);
@@ -91,6 +91,15 @@ void RenderLoop() {
 
 		deviceContext->Dispatch(WindowWidth / 8, WindowHeight / 8, 1);
 		swapchain->Present(1, 0);
+
+		if (spheres[0].x > 5 || spheres[0].x < -5 || spheres[0].z > 5 || spheres[0].z < -5) {
+			XINPUT_VIBRATION vibration = { 60000, 60000 };
+			XInputSetState(0, &vibration);
+		}
+		else {
+			XINPUT_VIBRATION vibration = { 0, 0 };
+			XInputSetState(0, &vibration);
+		}
 	}
 }
 void UpdateLoop() {
@@ -266,7 +275,7 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, char* cmdArgs, in
 	#pragma region Main Loop:
 		std::thread InputThread(InputLoop);
 		std::thread UpdateThread(UpdateLoop);
-		std::thread renderThread(RenderLoop);
+		std::thread renderThread(OutputLoop);
 		while (running)
 	{
 		MSG message = {};
