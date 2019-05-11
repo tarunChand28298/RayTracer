@@ -55,7 +55,6 @@ RayHit CreateRayHit()
 
 Ray CreateCameraRay(float2 uv)
 {
-    float4x4 cameraInverseProjection = float4x4(0.76f, 0.0f, 0.0f, 0.0f, 0.0f, 0.5f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, -1.0f, 0.0f, 0.0f, -1.6f, 1.6f);
     float3 origin = mul(cameraToWorld, float4(0.0f, 0.0f, 0.0f, 1.0f)).xyz;
     float3 direction = mul(cameraInverseProjection, float4(uv, 0.0f, 1.0f)).xyz;
 
